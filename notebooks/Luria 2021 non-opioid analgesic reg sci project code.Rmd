@@ -192,9 +192,80 @@ ggplot(atc_n02_phases_plot,
 
 ```
 
-```{r echo=FALSE, fig.cap="Survival curve showing at which stage of development opioid (N02A) and non-opioid (N02B) analgesics shift from active development to inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn')."}
+```{r echo=FALSE, fig.cap="Survival curve showing at which stage of development opioid (N02A) and non-opioid (N02B) analgesics shift from active development to inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn'), only drugs significantly updated in the last decade."}
 
 
-fit <- survfit(Surv(atc_n02_phases2$Highest.Development.Phase.Survival, atc_n02_phases2$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases2)
+fit <- survfit(Surv(atc_n02_phases3$Highest.Development.Phase.Survival, atc_n02_phases3$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases3)
 autoplot(fit)
+
 ```
+
+```{r echo=FALSE}
+
+#remove drugs that have not been significantly updated in the last 10 years
+
+atc_n02_phases2$Last.Significant.Update.Date.Date <- as.Date(atc_n02_phases2$Last.Significant.Update.Date, "%d/%m/%Y")
+atc_n02_phases3 <- atc_n02_phases2[atc_n02_phases2$Last.Significant.Update.Date.Date>="2011-05-01",]
+
+atc_n02_phases3 %>%
+  group_by(ATC) %>%
+  summarise(
+    n = n(),
+  )
+
+```
+
+```{r echo=FALSE}
+
+#generate list of drugs that are Phase 1 or later to use in searching ct.gov
+
+atc_n02_phases_export <- atc_n02_phases3[atc_n02_phases3$Highest.Development.Phase.Survival>=2,] 
+drug_list <- atc_n02_phases_export$Drug.Name
+write.csv(rbind(drug_list), file="data/drug_list_20210503.csv", row.names=FALSE)
+
+```
+
+
+```{r echo=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of opioid (N02A) and non-opioid (N02B) analgesics in active development and inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn') among phases of development. Drugs with no significant updates within last ten years are not shown."}
+
+phases <- c(
+  "0" = "Research",
+  "1" = "Preclin",
+  "2" = "Phase I",
+  "3" = "Phase II",
+  "4" = "Phase III",
+  "5" = "Prereg",
+  "6" = "Registered",
+  "7" = "Marketed"
+)
+
+atc_n02_phases_plot <- 
+  atc_n02_phases_3 %>%
+  group_by(ATC, Highest.Development.Phase.Status, Highest.Development.Phase.Survival) %>%
+  summarise(
+    n = n(),
+  )
+
+
+classes <- c("Non-opioid", "Opioid")
+
+ggplot(atc_n02_phases_plot, 
+       aes(fill=as.factor(Highest.Development.Phase.Status), x=ATC, y=n)) + 
+    geom_bar(position="stack", stat="identity") +
+  scale_x_discrete(labels = classes) + 
+ scale_fill_discrete(labels=c("inactive", "active"), name="Status") +
+  labs(x="Drug class") +
+  facet_grid(Highest.Development.Phase.Survival~., labeller=labeller(Highest.Development.Phase.Survival=phases)) +
+  coord_flip() +
+  theme(legend.position="bottom", legend.direction = "horizontal", strip.text.y = element_text(angle=0))
+
+```
+
+```{r echo=FALSE, fig.cap="Survival curve showing at which stage of development opioid (N02A) and non-opioid (N02B) analgesics shift from active development to inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn'), only drugs significantly updated in the last decade."}
+
+
+fit <- survfit(Surv(atc_n02_phases3$Highest.Development.Phase.Survival, atc_n02_phases3$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases3)
+autoplot(fit)
+
+```
+
