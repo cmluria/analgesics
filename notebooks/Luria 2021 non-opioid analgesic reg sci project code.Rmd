@@ -3,8 +3,9 @@ title: "Non-opioid analgesics reg sci project_scratch"
 author: "Cat Luria"
 date: "3/29/2021"
 output:
-  pdf_document: default
+  word_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -18,6 +19,7 @@ library(dplyr)
 library(survival)
 library(ggfortify)
 library(tidyverse)
+library(survminer)
 
 
 ```
@@ -41,7 +43,7 @@ atc_n02_phases <- drugs_ATC_NO2_expanded_dt[, Highest.Development.Phase.Simple :
 atc_n02_phases$Highest.Development.Phase.Activity <- "Active"
 
 
-##remove rows with non-useful highest development phase
+##remove rows with uninformative reported highest development phase
 atc_n02_phases <- atc_n02_phases[ ! Highest.Development.Phase.Simple %like% "Unknown"]
 atc_n02_phases <- atc_n02_phases[ ! Highest.Development.Phase.Simple %like% "\\(Clinical\\)"]
 atc_n02_phases <- atc_n02_phases[ ! Highest.Development.Phase.Simple %like% "0"]
@@ -51,10 +53,24 @@ atc_n02_phases <- atc_n02_phases[ Highest.Development.Phase.Simple != "No develo
 
 
 ##Categorize all statuses "No development reported", "Suspended", "Discontinued", "Withdrawal" as "Inactive" 
+length(atc_n02_phases$Highest.Development.Phase
+       [atc_n02_phases$Highest.Development.Phase %like% "No development reported"]) +
+  length(atc_n02_phases$Highest.Development.Phase
+         [atc_n02_phases$Highest.Development.Phase %like% "Discontinued" ]) +
+  length(atc_n02_phases$Highest.Development.Phase
+         [atc_n02_phases$Highest.Development.Phase %like% "Suspended" ]) +
+length(atc_n02_phases$Highest.Development.Phase
+         [atc_n02_phases$Highest.Development.Phase %like% "Withdrawal" ]) 
+
+
 atc_n02_phases$Highest.Development.Phase.Activity[atc_n02_phases$Highest.Development.Phase %like% "No development reported" ] <- "Inactive"
 atc_n02_phases$Highest.Development.Phase.Activity[atc_n02_phases$Highest.Development.Phase %like% "Discontinued" ] <- "Inactive"
 atc_n02_phases$Highest.Development.Phase.Activity[atc_n02_phases$Highest.Development.Phase %like% "Suspended" ] <- "Inactive"
 atc_n02_phases$Highest.Development.Phase.Activity[atc_n02_phases$Highest.Development.Phase %like% "Withdrawal" ] <- "Inactive"
+
+length(atc_n02_phases$Highest.Development.Phase.Activity
+         [atc_n02_phases$Highest.Development.Phase.Activity == "Inactive" ]) 
+
 ################################
 
 
@@ -70,16 +86,10 @@ atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Developme
 atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Development.Phase.Simple %like% "\\(III\\)" ] <- "Phase III"
 atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Development.Phase.Simple %like% "\\(Registered\\)" ] <- "Registered"
 atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Development.Phase.Simple %like% "\\(Preregistration\\)" ] <- "Preregistration"
-atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Development.Phase.Simple %like% "Withdrawal" ] <- "Marketed"
-################################
+atc_n02_phases$Highest.Development.Phase.Simple[atc_n02_phases$Highest.Development.Phase.Simple %like% "Market" ] <- "Marketed"
 
-
-##stacked histogram showing frequency of development levels coded by activity/inactivity
-# p <- ggplot(atc_n02_phases, aes(x=Highest.Development.Phase.Simple, fill=Highest.Development.Phase.Activity)) + geom_histogram(stat="count") + coord_flip() +  scale_x_discrete(limits = c("Marketed", "Registered", "Preregistration", "Phase III", "Phase II", "Phase I", "Preclinical", "Research"))           
-# 
-# show(p)
-
-
+length(atc_n02_phases$Highest.Development.Phase[atc_n02_phases$Highest.Development.Phase.Simple=="Marketed" &
+                                                         atc_n02_phases$Highest.Development.Phase.Activity == "Inactive"])
 
 
 ```
@@ -94,21 +104,28 @@ atc_n02_phases <- atc_n02_phases[, Highest.Development.Phase.Survival := Highest
 atc_n02_phases <- atc_n02_phases[, Highest.Development.Phase.Status := Highest.Development.Phase.Activity]
 
 
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Research"] <- 0
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Preclinical"] <- 1
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase I"] <- 2
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase II"] <- 3
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase III"] <- 4
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Preregistration"] <- 5
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Registered"] <- 6
-atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Marketed"] <- 7
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Research"] <- 1
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Preclinical"] <- 2
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase I"] <- 3
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase II"] <- 4
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Phase III"] <- 5
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Preregistration"] <- 6
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Registered"] <- 7
+atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == "Marketed"] <- 8
  
 
 
-atc_n02_phases$Highest.Development.Phase.Status[atc_n02_phases$Highest.Development.Phase.Activity == "Active"] <- 1
-atc_n02_phases$Highest.Development.Phase.Status[atc_n02_phases$Highest.Development.Phase.Activity == "Inactive"] <- 0     
+atc_n02_phases$Highest.Development.Phase.Status[atc_n02_phases$Highest.Development.Phase.Activity == "Active"] <- 0
+atc_n02_phases$Highest.Development.Phase.Status[atc_n02_phases$Highest.Development.Phase.Activity == "Inactive"] <- 1     
 
+a <- atc_n02_phases$Highest.Development.Phase.Survival[atc_n02_phases$Highest.Development.Phase.Survival == 8]
+length(a)
 
+  atc_n02_phases %>%
+  group_by(Highest.Development.Phase.Status, Highest.Development.Phase.Survival) %>%
+  summarise(
+    n = n(),
+  )
 
 ```
 
@@ -121,9 +138,6 @@ atc_n02_phases$Highest.Development.Phase.Status[atc_n02_phases$Highest.Developme
 N02A_cols <- colnames(atc_n02_phases %>% select(contains("N02A")))
 N02B_cols <- colnames(atc_n02_phases %>% select(contains("N02B")))
 
-##goal: for atc_no2_phases[row, ] in any column listed in N02A_cols, if 1+ columns has a "1", then atc_n02_phases$ATC[A=N02A,]
-
-
 atc_n02_phases$ATC <- "other"
 
 atc_n02_phases$ATC[rowSums(data.frame(atc_n02_phases)[,N02A_cols]) > 0 &
@@ -132,26 +146,22 @@ atc_n02_phases$ATC[rowSums(data.frame(atc_n02_phases)[,N02A_cols]) > 0 &
 atc_n02_phases$ATC[rowSums(data.frame(atc_n02_phases)[,N02B_cols]) > 0 &
                      rowSums(data.frame(atc_n02_phases)[,N02A_cols]) == 0] <- "N02B"
 
-atc_n02_phases2 <- atc_n02_phases[atc_n02_phases$ATC!="other",]
+atc_n02_phases <- atc_n02_phases[atc_n02_phases$ATC!="other",]
 
 
-#n02B <- atc_n02_phases %>% filter_at(vars(contains('N02B')), any_vars(. == 1))
-#n02A <- atc_n02_phases %>% filter_at(vars(contains('N02A')), any_vars(. == 1))
+atc_n02_phases$Highest.Development.Phase.Survival <- as.numeric(atc_n02_phases$Highest.Development.Phase.Survival)
 
-
-atc_n02_phases2$Highest.Development.Phase.Survival <- as.numeric(atc_n02_phases2$Highest.Development.Phase.Survival)
-
-atc_n02_phases2$Highest.Development.Phase.Status <- as.numeric(atc_n02_phases2$Highest.Development.Phase.Status)
+atc_n02_phases$Highest.Development.Phase.Status <- as.numeric(atc_n02_phases$Highest.Development.Phase.Status)
 
 
 atc_n02_phases_plot <- 
-  atc_n02_phases2 %>%
+  atc_n02_phases %>%
   group_by(ATC, Highest.Development.Phase.Status, Highest.Development.Phase.Survival) %>%
   summarise(
     n = n(),
   )
 
-p <- atc_n02_phases2 %>%
+p <- atc_n02_phases %>%
   group_by(ATC, Highest.Development.Phase.Status) %>%
   summarise(
     n = n(),
@@ -163,51 +173,14 @@ p <- atc_n02_phases2 %>%
 All drugs in WHO ATC class N02 were downloaded from Adis Insight database on March 29, 2021. Of these, 329 were opioids (N02A) and 427 were non-opioids (N02B). Drugs classified as both N02A and N02B were excluded, leaving a total cohort of 756 drugs. Drugs with latest phase of development indicating suspension, discontinuation, no development reported for several years or market withdrawl were categorized here as "inactive". Similar proportions--approximately one third--of both N02A and N02B drugs were "active". 
 
 
-```{r echo=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of opioid (N02A) and non-opioid (N02B) analgesics in active development and inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn') among phases of development."}
-
-phases <- c(
-  "0" = "Research",
-  "1" = "Preclin",
-  "2" = "Phase I",
-  "3" = "Phase II",
-  "4" = "Phase III",
-  "5" = "Prereg",
-  "6" = "Registered",
-  "7" = "Marketed"
-)
-
-
-
-classes <- c("Non-opioid", "Opioid")
-
-ggplot(atc_n02_phases_plot, 
-       aes(fill=as.factor(Highest.Development.Phase.Status), x=ATC, y=n)) + 
-    geom_bar(position="stack", stat="identity") +
-  scale_x_discrete(labels = classes) + 
- scale_fill_discrete(labels=c("inactive", "active"), name="Status") +
-  labs(x="Drug class") +
-  facet_grid(Highest.Development.Phase.Survival~., labeller=labeller(Highest.Development.Phase.Survival=phases)) +
-  coord_flip() +
-  theme(legend.position="bottom", legend.direction = "horizontal", strip.text.y = element_text(angle=0))
-
-```
-
-```{r echo=FALSE, fig.cap="Survival curve showing at which stage of development opioid (N02A) and non-opioid (N02B) analgesics shift from active development to inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn'), only drugs significantly updated in the last decade."}
-
-
-fit <- survfit(Surv(atc_n02_phases3$Highest.Development.Phase.Survival, atc_n02_phases3$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases3)
-autoplot(fit)
-
-```
-
 ```{r echo=FALSE}
 
 #remove drugs that have not been significantly updated in the last 10 years
 
-atc_n02_phases2$Last.Significant.Update.Date.Date <- as.Date(atc_n02_phases2$Last.Significant.Update.Date, "%d/%m/%Y")
-atc_n02_phases3 <- atc_n02_phases2[atc_n02_phases2$Last.Significant.Update.Date.Date>="2011-05-01",]
+#atc_n02_phases2$Last.Significant.Update.Date.Date <- as.Date(atc_n02_phases2$Last.Significant.Update.Date, "%d/%m/%Y")
+#atc_n02_phases3 <- atc_n02_phases2[atc_n02_phases2$Last.Significant.Update.Date.Date>="2011-05-01",]
 
-atc_n02_phases3 %>%
+atc_n02_phases %>%
   group_by(ATC) %>%
   summarise(
     n = n(),
@@ -219,9 +192,9 @@ atc_n02_phases3 %>%
 
 #generate list of drugs that are Phase 1 or later to use in searching ct.gov
 
-atc_n02_phases_export <- atc_n02_phases3[atc_n02_phases3$Highest.Development.Phase.Survival>=2,] 
-drug_list <- atc_n02_phases_export$Drug.Name
-write.csv(rbind(drug_list), file="data/drug_list_20210503.csv", row.names=FALSE)
+# atc_n02_phases_export <- atc_n02_phases3[atc_n02_phases3$Highest.Development.Phase.Survival>=2,] 
+# drug_list <- atc_n02_phases_export$Drug.Name
+# write.csv(rbind(drug_list), file="data/drug_list_20210503.csv", row.names=FALSE)
 
 ```
 
@@ -229,18 +202,18 @@ write.csv(rbind(drug_list), file="data/drug_list_20210503.csv", row.names=FALSE)
 ```{r echo=FALSE, error=FALSE, warning=FALSE, message=FALSE, fig.cap="Distribution of opioid (N02A) and non-opioid (N02B) analgesics in active development and inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn') among phases of development. Drugs with no significant updates within last ten years are not shown."}
 
 phases <- c(
-  "0" = "Research",
-  "1" = "Preclin",
-  "2" = "Phase I",
-  "3" = "Phase II",
-  "4" = "Phase III",
-  "5" = "Prereg",
-  "6" = "Registered",
-  "7" = "Marketed"
+  "1" = "Research",
+  "2" = "Preclin",
+  "3" = "Phase I",
+  "4" = "Phase II",
+  "5" = "Phase III",
+  "6" = "Prereg",
+  "7" = "Registered",
+  "8" = "Marketed"
 )
 
 atc_n02_phases_plot <- 
-  atc_n02_phases_3 %>%
+  atc_n02_phases %>%
   group_by(ATC, Highest.Development.Phase.Status, Highest.Development.Phase.Survival) %>%
   summarise(
     n = n(),
@@ -249,11 +222,11 @@ atc_n02_phases_plot <-
 
 classes <- c("Non-opioid", "Opioid")
 
-ggplot(atc_n02_phases_plot, 
-       aes(fill=as.factor(Highest.Development.Phase.Status), x=ATC, y=n)) + 
-    geom_bar(position="stack", stat="identity") +
-  scale_x_discrete(labels = classes) + 
- scale_fill_discrete(labels=c("inactive", "active"), name="Status") +
+ggplot(atc_n02_phases_plot,
+       aes(fill=as.factor(Highest.Development.Phase.Status), x=ATC, y=n)) +
+    geom_bar(position = position_stack(reverse = TRUE), stat="identity") +
+  scale_x_discrete(labels = classes) +
+ scale_fill_discrete(labels=c("Active", "Inactive"), name="Status") +
   labs(x="Drug class") +
   facet_grid(Highest.Development.Phase.Survival~., labeller=labeller(Highest.Development.Phase.Survival=phases)) +
   coord_flip() +
@@ -263,9 +236,122 @@ ggplot(atc_n02_phases_plot,
 
 ```{r echo=FALSE, fig.cap="Survival curve showing at which stage of development opioid (N02A) and non-opioid (N02B) analgesics shift from active development to inactive (e.g. 'suspended', 'discontinued', 'no development reported', or 'withdrawn'), only drugs significantly updated in the last decade."}
 
+fit <- survfit(Surv(atc_n02_phases$Highest.Development.Phase.Survival, atc_n02_phases$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases)
+autoplot(fit, conf.int = TRUE)
 
-fit <- survfit(Surv(atc_n02_phases3$Highest.Development.Phase.Survival, atc_n02_phases3$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases3)
-autoplot(fit)
+survdiff(Surv(atc_n02_phases$Highest.Development.Phase.Survival, atc_n02_phases$Highest.Development.Phase.Status)~ATC, data = atc_n02_phases)
+
+#No significant difference
+
+# ggsurvplot(fit, xlab="Development phase", ylab="Porportion of drugs that entered phase") + scale_x_discrete(limits=c("Research", "Preclin", "Phase 1", "Phase 2", "Phase 3", "Prereg", "Registered", "Marketed"))
+# 
+# x <- c(1,fit$time)
+# y <- c(1,(fit$surv))
+# plot(x,y, type="S")
+# 
+# fit$surv
+# 
+# strata <- summary(fit)$strata
+# time <- summary(fit)$time
+# surv <- summary(fit)$surv
+# 
+# surv_output <- as.data.table(strata)
+# surv_output$time <- time
+# surv_output$surv <- surv
+# 
+# ggplot(data=surv_output, aes(x=time, y=surv, color=strata)) + geom_line()
 
 ```
 
+```{r echo=FALSE}
+
+#atc_n02_phases_export <- atc_n02_phases3[, c(1:37, 1919:1923),]
+# drug_list <- atc_n02_phases_export$Drug.Name
+#write.csv(atc_n02_phases_export, file="data/filtered_drugs_20210505.csv", row.names=TRUE)
+
+```
+
+```{r echo=FALSE}
+
+#check if biomarkers = activity
+
+atc_n02_phases$Biomarkers.Logic <- apply(atc_n02_phases[,32:36],MARGIN = 1, function(x) sum(x!=""))>0
+
+chi.table <- table(atc_n02_phases$Highest.Development.Phase.Activity, atc_n02_phases$Biomarkers.Logic)
+chisq.test(chi.table)
+
+chi.table[2,2]/(chi.table[1,2]+chi.table[2,2])
+chi.table[2,1]/(chi.table[1,1]+chi.table[2,1])
+
+#check if there is a significant difference between opioids and non-opioids in terms of what fraction have reported biomarkers
+
+chi.table <- table(atc_n02_phases$Biomarkers.Logic, atc_n02_phases$ATC)
+chi.table
+chisq.test(chi.table)
+
+chi.table[2,2]/(chi.table[1,2]+chi.table[2,2])
+chi.table[2,1]/(chi.table[1,1]+chi.table[2,1])
+
+#Check to see if there is a difference between development phases in fractions of drugs that have biomarkers
+
+kt <- kruskal.test(x=atc_n02_phases$Highest.Development.Phase.Survival, g=atc_n02_phases$Biomarkers.Logic)
+
+```
+
+
+```{r}
+
+### barplot of top indications
+
+at <- atc_n02_phases[,grepl("IND", colnames(atc_n02_phases)), with=FALSE]
+
+sumdata=data.frame(value=apply(at,2,sum))
+sumdata$key=colnames(at)
+sumdata <- sumdata[sumdata$value!=0,]
+sumdata <- sumdata[order(-sumdata$value),]
+
+sumdata$key <- factor(sumdata$key, levels = sumdata$key)
+
+ggplot(data=sumdata[1:10,], aes(x=key, y=value, fill=key)) +
+geom_bar(colour="black", stat="identity")
+
+
+
+
+```
+
+
+```{r}
+
+# at <- atc_n02_phases[atc_n02_phases$ATC=="N02A",grepl("MCH", colnames(atc_n02_phases)), with=FALSE]
+# 
+# sumdata=data.frame(value=apply(at,2,sum))
+# sumdata$key=colnames(at)
+# sumdata <- sumdata[sumdata$value!=0,]
+# sumdata <- sumdata[order(-sumdata$value),]
+# 
+# sumdata$key <- factor(sumdata$key, levels = sumdata$key)
+# 
+# ggplot(data=sumdata[1:10,], aes(x=key, y=value, fill=key)) +
+# geom_bar(colour="black", stat="identity")
+```
+
+```{r echo=FALSE, fig.cap="Top 10 reported mechanisms of actions for N02B drugs."}
+at <- atc_n02_phases[atc_n02_phases$ATC=="N02B",grepl("MCH", colnames(atc_n02_phases)), with=FALSE]
+
+sumdata=data.frame(value=apply(at,2,sum))
+sumdata$key=colnames(at)
+sumdata <- sumdata[sumdata$value!=0,]
+sumdata <- sumdata[order(-sumdata$value),]
+
+sumdata$key <- factor(sumdata$key, levels = sumdata$key)
+
+ggplot(data=sumdata[1:10,], aes(x=key, y=value, fill=key)) +
+geom_bar(colour="black", stat="identity") +
+  ylab("No. of drugs with MOA") +
+ scale_fill_discrete(name = "MOA", labels=c("Undefined" ,"COX inhibitor", "COX2 inhibitor", "NMDA receptor antagonist", "Na channel antagonist", "CACNA2D1 modulator", "NK-1 antagonist", "Ca channel antagonist", "Cannabinoid receptor antagonist", "Glutamate receptor antagonist"))+
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+```
